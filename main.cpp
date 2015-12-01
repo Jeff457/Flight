@@ -1,15 +1,20 @@
 #include <iostream>
-#include <string>
-#include <vector>
-#include <algorithm>
 #include "HashTable.h"
 #include "Flight.h"
 using namespace std;
 
 int main()
 {
-	Passenger aPassenger("Jeff", "Stanton", "Pilot Club", 1234, 4576);
-	Flight firstFlight(4576, 900, 1300, 150000, "TO", "LA");
-	firstFlight.addPassenger(aPassenger);
-	firstFlight.removePassenger(aPassenger);
+	HashTable<int, int> firstHash;
+	firstHash.add(0, 34242);
+	firstHash.add(1, 1231231);
+	firstHash.add(44, 121);
+
+	HashTable<int, int> secondHash(firstHash);
+
+	vector<int> getEm;
+	getEm = secondHash.getAll();
+	for (auto all : getEm)
+		cout << all << endl;
+
 }

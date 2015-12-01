@@ -7,22 +7,29 @@ class LinkedHashedEntry
 private:
 	KeyType key;  // Search key for Entry
 	ItemType value;  // The entry itself
-	LinkedHashedEntry* next;  // Point to the hashed entry
+	LinkedHashedEntry<KeyType, ItemType>* next;  // Point to the hashed entry
 
 public:
 	LinkedHashedEntry() : next(nullptr) {}
-	LinkedHashedEntry(const KeyType& key, const ItemType& value) 
+	LinkedHashedEntry(const KeyType& newKey, const ItemType& newEntry)
 	{
-		this->key = key;
-		this->value = value;
+		key = newKey;
+		value = newEntry;
 		next = nullptr;
+	}
+	LinkedHashedEntry(const KeyType& newKey, const ItemType& newEntry, LinkedHashedEntry<KeyType, ItemType>* nextPtr)
+	{
+		key = newKey;
+		value = newEntry;
+		next = nextPtr;
 	}
 
 	KeyType		       getKey()   const	{ return key;   }
 	ItemType		   getValue() const { return value; }
-	LinkedHashedEntry* getNext()  const { return next;  }
+	
+	LinkedHashedEntry<KeyType, ItemType>* getNext()  const { return next;  }
 
-	void setNext(LinkedHashedEntry* next) { this->next = next; }
+	void setNext(LinkedHashedEntry<KeyType, ItemType>* nextEntryPtr) { next = nextEntryPtr; }
 };
 
 #endif

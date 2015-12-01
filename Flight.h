@@ -85,14 +85,7 @@ void Flight::addPassenger(const Passenger& passenger)
 
 void Flight::removePassenger(const Passenger& passenger)
 {
-	try
-	{
-		manifest.remove( passenger.getReservationNumber() );
-	}
-	catch (NotFoundException&)
-	{
-		cout << "Unable to find passenger aboard flight " << flightNumber << endl;
-	}
+	manifest.remove( passenger.getReservationNumber() );
 }  // end removePassenger
 
 Passenger Flight::findPassenger(const Passenger& passenger)

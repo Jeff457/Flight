@@ -45,8 +45,8 @@ public:
 	void add(const KeyType& key, const ItemType& value);
 	
 	/** Removes an item with the given search key from the hash table. 
-	@throw NotFoundException if the item does not exist. */
-	void remove(const KeyType& key);
+	@return true if item is successfully removed, false otherwise. */
+	bool remove(const KeyType& key);
 
 	/** Sets itemCount to 0.  */
 	void clear();
@@ -71,12 +71,15 @@ int HashTable<KeyType, ItemType>::getHashIndex(const KeyType& key) const
 template<class KeyType, class ItemType>
 void HashTable<KeyType, ItemType>::copyHashTable(const HashTable<KeyType, ItemType>& aHashTable)
 {
-	for (int i = 0; i < aHashTable.getTotalEntries(); i++)
+	for (int i = 0; i < TABLE_SIZE; i++)
 	{
-		if (aHashTable[i] == nullptr)
-			continue;
+		if (aHashTable.table[i] != nullptr)
+		{
+			LinkedHashedEntry<KeyType, ItemType>* copiedEntry = new LinkedHashedEntry<KeyType, ItemType>( aHashTable.table[i]->getKey(), aHashTable.table[i]->getValue(), aHashTable.table[i]->getNext() );
+			table[i] = copiedEntry;
+		}
 		else
-			table[i] = aHashTable[i];
+			table[i] = nullptr;
 	}
 }  // end copyHashTable
 
@@ -116,6 +119,8 @@ HashTable<KeyType, ItemType>& HashTable<KeyType, ItemType>::operator=(const Hash
 	if (aHashTable.getTotalEntries() == 0)
 	{
 		table = new LinkedHashedEntry<KeyType, ItemType>*[TABLE_SIZE];
+		for (size_t i = 0; i < TABLE_SIZE; i++)
+			table[i] = nullptr;
 		itemCount = 0;
 	}
 	else
@@ -123,7 +128,9 @@ HashTable<KeyType, ItemType>& HashTable<KeyType, ItemType>::operator=(const Hash
 		table = new LinkedHashedEntry<KeyType, ItemType>*[TABLE_SIZE];
 		itemCount = aHashTable.getTotalEntries();
 		copyHashTable(aHashTable);
-	}
+}  // end overloaded operator =
+
+return *this;
 }  // end overloaded = operator
 
 template<class KeyType, class ItemType>
@@ -146,9 +153,7 @@ vector<ItemType> HashTable<KeyType, ItemType>::getAll() const
 
 	for (size_t i = 0; i < TABLE_SIZE; i++)
 	{
-		if (table[i] == nullptr)
-			continue;
-		else
+		if (table[i] != nullptr)
 		{
 			LinkedHashedEntry<KeyType, ItemType>* entry = table[i];
 			entries.push_back( entry->getValue() );
@@ -163,70 +168,70 @@ void HashTable<KeyType, ItemType>::add(const KeyType& key, const ItemType& value
 {
 	// Create entry to add to hash table
 	LinkedHashedEntry<KeyType, ItemType>* entryToAddPtr = new LinkedHashedEntry<KeyType, ItemType>(key, value);
-	
+
 	// Compute the hashed index into the array
 	int hashIndex = getHashIndex(key);
-	
+
 	// Add the entry to the chain at hashIndex
 	if (table[hashIndex] == nullptr)
-		table[hashIndex] = entryToAddPtr;
+		table[hashIndex] = entryToAddPtr;  // No item at hashed index
 	else
 	{
-		LinkedHashedEntry<KeyType, ItemType>* entry = table[hashIndex];
-		while (entry->getNext() != nullptr)
-			entry = entry->getNext();
-		entry->setNext( entryToAddPtr );
+		entryToAddPtr->setNext(table[hashIndex]);  // New entry points to current item at hashed index
+		table[hashIndex] = entryToAddPtr;  // Add entry to top of chain at index
 	}
 
 	itemCount++;
 }  // end put
 
 template<class KeyType, class ItemType>
-void HashTable<KeyType, ItemType>::remove(const KeyType& key)
+bool HashTable<KeyType, ItemType>::remove(const KeyType& key)
 {
+	bool itemFound = false;
 	// Compute the hashed index into the array
 	int hashIndex = getHashIndex(key);
 	if (table[hashIndex] != nullptr)
 	{
-		LinkedHashedEntry<KeyType, ItemType>* prevEntry = nullptr;
-		LinkedHashedEntry<KeyType, ItemType>* entryToRemove = table[hashIndex];
-		while (entryToRemove->getNext() != nullptr && entryToRemove->getKey() != key)
+		// First node has target
+		if ( key == table[hashIndex]->getKey() )
 		{
-			prevEntry = entryToRemove;
-			entryToRemove = entryToRemove->getNext();
+			LinkedHashedEntry<KeyType, ItemType>* entryToRemovePtr = table[hashIndex];
+			table[hashIndex] = table[hashIndex]->getNext();
+			delete entryToRemovePtr;
+			entryToRemovePtr = nullptr;
+			itemFound = true;
 		}
-		if (entryToRemove->getKey() == key)  // Found item
+		else  // Search the rest of the chain
 		{
-			if (prevEntry == nullptr)  // First node in the chain
+			LinkedHashedEntry<KeyType, ItemType>* prevPtr = table[hashIndex];
+			LinkedHashedEntry<KeyType, ItemType>* curPtr = prevPtr->getNext();
+			while ((curPtr != nullptr) && !itemFound)
 			{
-				LinkedHashedEntry<KeyType, ItemType>* nextEntry = entryToRemove->getNext();
-				delete entryToRemove;
-				entryToRemove = nullptr;
-				table[hashIndex] = nextEntry;
-			}  // end if
-			else  // Attach previous node to entryToRemove's successor
-			{
-				LinkedHashedEntry<KeyType, ItemType>* next = entryToRemove->getNext();
-				delete entryToRemove;
-				entryToRemove = nullptr;
-				prevEntry->setNext(next);
-			}  // end else
-			itemCount--;
+				// Found item in chain so remove that node
+				if ( key == curPtr->getKey() )
+				{
+					prevPtr->setNext(curPtr->getNext());
+					delete curPtr;
+					curPtr = nullptr;
+					itemFound = true;
+				}
+				else  // Look at next entry in chain
+				{
+					prevPtr = curPtr;
+					curPtr = curPtr->getNext();
+				}  // end if
+			}  // end while
 		}  // end if
 	}  // end if
-	else
-		throw NotFoundException();
+
+	return itemFound;
 }  // end remove
 
 template<class KeyType, class ItemType>
 void HashTable<KeyType, ItemType>::clear()
 {
 	itemCount = 0;
-}  // end clear
 
-template<class KeyType, class ItemType>
-HashTable<KeyType, ItemType>::~HashTable()
-{
 	for (size_t i = 0; i < TABLE_SIZE; i++)
 	{
 		if (table[i] != nullptr)
@@ -241,8 +246,14 @@ HashTable<KeyType, ItemType>::~HashTable()
 				prevEntry = nullptr;
 			}
 		}  // end if
-	}  // end if
-	delete[] table;
+	}  // end for
+}  // end clear
+
+template<class KeyType, class ItemType>
+HashTable<KeyType, ItemType>::~HashTable()
+{
+	clear();
+	delete [] table;
 	table = nullptr;
 }  // end destructor
 
