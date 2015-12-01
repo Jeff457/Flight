@@ -1,0 +1,23 @@
+Must be in this order:
+
+int Flight Number
+int Departure Time  (in military time)
+int Arrival Time  (in military time)
+string From City
+string To City
+
+1
+0600
+0630
+L
+F
+2
+1000
+1150
+O
+E
+3
+0900
+0930
+G
+F
