@@ -48,7 +48,7 @@ public:
 	@return true if item is successfully removed, false otherwise. */
 	bool remove(const KeyType& key);
 
-	/** Sets itemCount to 0.  */
+	/** Deallocates all dynamic memory and sets itemCount to 0.  */
 	void clear();
 
 };
