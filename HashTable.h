@@ -5,7 +5,7 @@
 #ifndef _HASH_TABLE
 #define _HASH_TABLE
 
-const int TABLE_SIZE = 41;
+const int TABLE_SIZE = 51;
 
 template<class KeyType, class ItemType>
 class HashTable
@@ -35,16 +35,16 @@ public:
 	@throw NotFoundException if the item does not exist. */
 	ItemType find(const KeyType& key) const;
 
-	/** Retrieves all items in the hash table. */
-	vector<ItemType> getAll() const;
+	/** Retrieves all keys in the hash table. */
+	vector<KeyType> getAll() const;
 
 	/** Returns the number of entries in the Hash Table. */
 	int getTotalEntries() const { return itemCount; }
 
 	/** Inserts an item into the HashTable according to the item's search key. */
 	void add(const KeyType& key, const ItemType& value);
-	
-	/** Removes an item with the given search key from the hash table. 
+
+	/** Removes an item with the given search key from the hash table.
 	@return true if item is successfully removed, false otherwise. */
 	bool remove(const KeyType& key);
 
@@ -65,7 +65,7 @@ public:
 template<class KeyType, class ItemType>
 int HashTable<KeyType, ItemType>::getHashIndex(const KeyType& key) const
 {
-	return ( ( ( 17 * key + 5 ) % 997) % TABLE_SIZE );
+	return (((17 * key + 5) % 997) % TABLE_SIZE);
 }  // end getHashCode
 
 template<class KeyType, class ItemType>
@@ -75,7 +75,7 @@ void HashTable<KeyType, ItemType>::copyHashTable(const HashTable<KeyType, ItemTy
 	{
 		if (aHashTable.table[i] != nullptr)
 		{
-			LinkedHashedEntry<KeyType, ItemType>* copiedEntry = new LinkedHashedEntry<KeyType, ItemType>( aHashTable.table[i]->getKey(), aHashTable.table[i]->getValue(), aHashTable.table[i]->getNext() );
+			LinkedHashedEntry<KeyType, ItemType>* copiedEntry = new LinkedHashedEntry<KeyType, ItemType>(aHashTable.table[i]->getKey(), aHashTable.table[i]->getValue(), aHashTable.table[i]->getNext());
 			table[i] = copiedEntry;
 		}
 		else
@@ -84,9 +84,9 @@ void HashTable<KeyType, ItemType>::copyHashTable(const HashTable<KeyType, ItemTy
 }  // end copyHashTable
 
 
-//==============================
-//		Public Methods
-//==============================
+   //==============================
+   //		Public Methods
+   //==============================
 
 template<class KeyType, class ItemType>
 HashTable<KeyType, ItemType>::HashTable()
@@ -128,9 +128,9 @@ HashTable<KeyType, ItemType>& HashTable<KeyType, ItemType>::operator=(const Hash
 		table = new LinkedHashedEntry<KeyType, ItemType>*[TABLE_SIZE];
 		itemCount = aHashTable.getTotalEntries();
 		copyHashTable(aHashTable);
-}  // end overloaded operator =
+	}  // end overloaded operator =
 
-return *this;
+	return *this;
 }  // end overloaded = operator
 
 template<class KeyType, class ItemType>
@@ -147,16 +147,16 @@ ItemType HashTable<KeyType, ItemType>::find(const KeyType& key) const
 }  // end get
 
 template<class KeyType, class ItemType>
-vector<ItemType> HashTable<KeyType, ItemType>::getAll() const
+vector<KeyType> HashTable<KeyType, ItemType>::getAll() const
 {
-	vector<ItemType> entries;
+	vector<KeyType> entries;
 
 	for (size_t i = 0; i < TABLE_SIZE; i++)
 	{
 		if (table[i] != nullptr)
 		{
 			LinkedHashedEntry<KeyType, ItemType>* entry = table[i];
-			entries.push_back( entry->getValue() );
+			entries.push_back(entry->getKey());
 		}
 	}
 
@@ -193,7 +193,7 @@ bool HashTable<KeyType, ItemType>::remove(const KeyType& key)
 	if (table[hashIndex] != nullptr)
 	{
 		// First node has target
-		if ( key == table[hashIndex]->getKey() )
+		if (key == table[hashIndex]->getKey())
 		{
 			LinkedHashedEntry<KeyType, ItemType>* entryToRemovePtr = table[hashIndex];
 			table[hashIndex] = table[hashIndex]->getNext();
@@ -208,7 +208,7 @@ bool HashTable<KeyType, ItemType>::remove(const KeyType& key)
 			while ((curPtr != nullptr) && !itemFound)
 			{
 				// Found item in chain so remove that node
-				if ( key == curPtr->getKey() )
+				if (key == curPtr->getKey())
 				{
 					prevPtr->setNext(curPtr->getNext());
 					delete curPtr;
@@ -253,7 +253,7 @@ template<class KeyType, class ItemType>
 HashTable<KeyType, ItemType>::~HashTable()
 {
 	clear();
-	delete [] table;
+	delete[] table;
 	table = nullptr;
 }  // end destructor
 

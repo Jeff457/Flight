@@ -1,8 +1,10 @@
 #include <string>
+#include <deque>
+#include <map>
+#include <iostream>
 using namespace std;
 
-#include "HashTable.h"
-#include "Passenger.h"
+#include "NotFoundException.h"
 
 #ifndef _FLIGHT
 #define _FLIGHT
@@ -13,10 +15,15 @@ class Flight
 	friend ostream& operator<<(ostream& out, const Flight& flights);
 
 private:
-	int pilotClub,
-		firstClass,
-		businessClass,
-		economy;
+	deque<int> pilotClub,		// Holds passenger according to their membership
+			    firstClass,
+				businessClass,
+				economy,
+				waiting;		// Holds overbooked passengers
+
+	map<size_t, string> manifest;  // Holds total passengers, including those waiting to board
+
+	size_t maxEconomySize;	// Default size is 27; decreases as passengers exceed Pilot, First, and Business reserved spaces
 
 	size_t flightNumber;
 	size_t departTime;
@@ -26,43 +33,50 @@ private:
 	string fromCity;
 	string toCity;
 
-	HashTable<size_t, Passenger> manifest;
+	bool addPilotClub(const size_t& reservation, bool& ableToAdd, size_t& reassign);
+	bool addFirstClass(const size_t& reservation, bool& ableToAdd, size_t& reassign);
+	bool addBusinessClass(const size_t& reservation, bool& ableToAdd, size_t& reassign);
+	bool addEconomy(const size_t& reservation, bool& ableToAdd, size_t& reassign);
+
 
 public:
-	Flight() : pilotClub(0), firstClass(0), businessClass(0), economy(0), flightNumber(0), departTime(0), arriveTime(0), mileage(0), fromCity(""), toCity("") {}
+	Flight() : maxEconomySize(27), flightNumber(0), departTime(0), arriveTime(0), mileage(0), fromCity(""), toCity("") {}
 	Flight(const size_t& flightNumber, const size_t& departTime, const size_t& arriveTime, const size_t& mileage, const string& fromCity, const string& toCity);
 
 	/** Add flight number, departure & arrival times, origin & destination cities. */
 	void addFlightNumber(const size_t& newFlightNumber) { flightNumber = newFlightNumber; }
-	void addDepartTime  (const size_t& departureTime)	{ departTime = departureTime;	  }
-	void addArriveTime  (const size_t& arrivalTime)		{ arriveTime = arrivalTime;		  }
-	void addOrigin      (const string& from)		    { fromCity = from;				  }
-	void addDestination (const string& to)				{ toCity = to;					  }
+	void addDepartTime(const size_t& departureTime) { departTime = departureTime; }
+	void addArriveTime(const size_t& arrivalTime) { arriveTime = arrivalTime; }
+	void addOrigin(const string& from) { fromCity = from; }
+	void addDestination(const string& to) { toCity = to; }
 
 	/** Total distance between departure and arrival city. */
 	void addMileage(const size_t& mileage) { this->mileage = mileage; };
-	
-	/** Adds passenger to manifest using reservation number. 
-	@pre  Only have room for 27 economy passengers with a maximum total capacity of 40 passengers. */
-	void addPassenger(const Passenger& passenger);
+
+	/** Adds passenger to manifest using reservation number.
+	@pre  Max capacity of 40 passengers.  Up to 10 seats can be used for higher ranking passengers
+		  (while reassiging lower ranked passengers).
+	@return true  If passengers (seated + waiting) <= 50
+			false If attempting to displace more than 10 passengers		*/
+	bool addPassenger(const size_t& reservation, const string& membership);
 
 	/** Retrieves flight data. */
 	size_t getFlightNumber() const { return flightNumber; }
-	size_t getDepartTime() const   { return departTime;	  }
-	size_t getArriveTime() const   { return arriveTime;   }
-	size_t getMileage() const	   { return mileage;	  }
-	string getOrigin() const	   { return fromCity;	  }
-	string getDestination() const  { return toCity;		  }
+	size_t getDepartTime() const { return departTime; }
+	size_t getArriveTime() const { return arriveTime; }
+	size_t getMileage() const { return mileage; }
+	string getOrigin() const { return fromCity; }
+	string getDestination() const { return toCity; }
 
-	/** Returns a list of all passengers aboard flight */
-	vector<Passenger> getManifest() const;
+	/** Returns a list of all passengers (reservation number) aboard flight */
+	vector<size_t> getManifest() const;
 
-	/** Returns passenger information if on flight.
+	/** Returns passenger reservation number if on flight.
 	@throw NotFoundException if the passenger is not on the flight. */
-	Passenger findPassenger(const Passenger& passenger) const;
+	void findPassenger(const size_t& reservation) const;
 
 	/** Removes passenger from manifest.  */
-	void removePassenger(const Passenger& passenger);
+	void removePassenger(const size_t& reservation);
 };
 
 
@@ -88,12 +102,176 @@ ostream& operator<<(ostream& out, const Flight& flights)
 }  // end overloaded << operator
 
 
-//==============================
-//		Public Methods
-//==============================
+   //==============================
+   //		Private Methods
+   //==============================
+
+bool Flight::addPilotClub(const size_t& reservation, bool& ableToAdd, size_t& reassign)
+{
+	if (pilotClub.size() >= 3)  // Pilot Club full, need to reassign passengers
+	{
+		if (firstClass.size() >= 5)  // First Class full, need to reassign passengers
+		{
+			if (businessClass.size() >= 5)  // Business Class full, need to reassign passengers
+			{
+				if (economy.size() >= 27)  // Economy Class full, need to reassign passengers
+				{
+					if (waiting.size() >= 10)  // Can only displace 10 passengers
+						ableToAdd = false;
+					else  // Waitlist isn't full, but Pilot, First, Business, and Economy are
+					{
+						// Move Economy to waitlist
+						reassign = economy.back();
+						economy.pop_back();
+						waiting.push_front(reassign);
+
+						// Move Business to Economy
+						reassign = businessClass.back();
+						businessClass.pop_back();
+						economy.push_front(reassign);
+
+						// Move First to Business
+						reassign = firstClass.back();
+						firstClass.pop_back();
+						businessClass.push_front(reassign);
+
+						// Add Pilot to First
+						firstClass.push_front(reservation);
+					}
+				}
+				else  // Economy isn't full, but Pilot, First, and Business are
+				{
+					// Move Business to Economy
+					reassign = businessClass.back();
+					businessClass.pop_back();
+					economy.push_front(reassign);
+
+					// Move First to Business
+					reassign = firstClass.back();
+					firstClass.pop_back();
+					businessClass.push_front(reassign);
+
+					// Add Pilot to First
+					firstClass.push_front(reservation);
+				}
+			}
+			else  // Business Class isn't full, but Pilot and First are
+			{
+				// Move First to Business
+				reassign = firstClass.back();
+				firstClass.pop_back();
+				businessClass.push_front(reassign);
+
+				// Add Pilot to First
+				firstClass.push_front(reservation);
+			}
+		}
+		else  // First Class isn't full, add without reassigning passengers
+			firstClass.push_front(reservation);
+	}
+	else  // Pilot Club isn't full, add without reassigning passengers
+		pilotClub.push_front(reservation);
+
+	return ableToAdd;
+}  // end addPilotclub
+
+bool Flight::addFirstClass(const size_t& reservation, bool& ableToAdd, size_t& reassign)
+{
+	if (firstClass.size() >= 5)  // First Class full, need to reassign passengers
+	{
+		if (businessClass.size() >= 5)  // Business Class full, need to reassign passengers
+		{
+			if (economy.size() >= 27)  // Economy Class full, need to reassign passengers
+			{
+				if (waiting.size() >= 10)  // Unable to displace > 10 passengers
+					ableToAdd = false;
+				else  // Waitlist isn't full but First, Business, and Economy Class are
+				{
+					// Move Economy to waitlist
+					reassign = economy.back();
+					economy.pop_back();
+					waiting.push_front(reassign);
+
+					// Move Business to Economy
+					reassign = businessClass.back();
+					businessClass.pop_back();
+					economy.push_front(reassign);
+
+					// Add First to Business
+					businessClass.push_front(reservation);
+				}
+			}
+			else  // Economy Class isn't full, but First and Business Class are
+			{
+				// Move Business to Economy
+				reassign = businessClass.back();
+				businessClass.pop_back();
+				economy.push_front(reassign);
+
+				// Add First to Business
+				businessClass.push_front(reservation);
+			}
+		}
+		else  // Business Class isn't full, add without reassigning passengers
+			businessClass.push_front(reservation);
+	}
+	else  // First Class isn't full, add without reassigning passengers
+		firstClass.push_front(reservation);
+
+	return ableToAdd;
+}  // end addFirstClass
+
+bool Flight::addBusinessClass(const size_t& reservation, bool& ableToAdd, size_t& reassign)
+{
+	if (businessClass.size() >= 5)  // Business Class is full, need to reassign passengers
+	{
+		if (economy.size() >= 27)  // Economy Class is full, need to reassign passengers
+		{
+			if (waiting.size() >= 10)  // Can only displace 10 passengers
+				ableToAdd = false;
+			else  // Waitlist isn't full, but Business and Economy are
+			{
+				// Move Economy to waitlist
+				reassign = economy.back();
+				economy.pop_back();
+				waiting.push_front(reassign);
+
+				// Add Business to Economy
+				economy.push_front(reservation);
+			}
+		}
+		else  // Economy isn't full, add without reassigning passengers
+			economy.push_front(reservation);
+	}
+	else  // Business Class isn't full, add without reassigning passengers
+		businessClass.push_front(reservation);
+
+	return ableToAdd;
+}  // end addBusinessClass
+
+bool Flight::addEconomy(const size_t& reservation, bool& ableToAdd, size_t& reassign)
+{
+	if (economy.size() >= 27)  // Economy full, add to waitlist
+	{
+		if (waiting.size() >= 10)  // Can only displace 10 passengers
+			ableToAdd = false;
+		else  // Haven't given up 10 additional seats yet
+			waiting.push_front(reservation);
+	}
+	else  // Economy Class isn't full yet, add without reassigning passengers
+		economy.push_front(reservation);
+
+	return ableToAdd;
+}  // end addEconomy
+
+
+   //==============================
+   //		Public Methods
+   //==============================
+
 
 Flight::Flight(const size_t& flightNumber, const size_t& departTime, const size_t& arriveTime, const size_t& mileage, const string& fromCity, const string& toCity)
-	: pilotClub(0), firstClass(0), businessClass(0), economy(0)
+	: maxEconomySize(27)
 {
 	this->flightNumber = flightNumber;
 	this->departTime = departTime;
@@ -103,53 +281,49 @@ Flight::Flight(const size_t& flightNumber, const size_t& departTime, const size_
 	this->toCity = toCity;
 }  // end constructor
 
-void Flight::addPassenger(const Passenger& passenger)
+bool Flight::addPassenger(const size_t& reservation, const string& membership)
 {
-	string membership = passenger.getMembership();
+	bool ableToAdd = true;  // Only false if waitlist is full
+	size_t reassign;  // For assigning passengers to different seats
 
 	if (membership == "Pilot Club")
-		pilotClub++;
+		ableToAdd = addPilotClub(reservation, ableToAdd, reassign);
 	else if (membership == "First Class")
-		firstClass++;
+		ableToAdd = addFirstClass(reservation, ableToAdd, reassign);
 	else if (membership == "Business Class")
-		businessClass++;
-	else
-		economy++;
+		ableToAdd = addBusinessClass(reservation, ableToAdd, reassign);
+	else if (membership == "Economy")  // Add economy class passengers up to max capacity
+		ableToAdd = addEconomy(reservation, ableToAdd, reassign);
+
+	manifest.emplace(reservation, membership);  // Keep track of total passengers
 	
-	if (manifest.getTotalEntries() <= 40)
-	{
-		// Only have room for 27 in economy
-		if (membership == "Economy" && economy > 27)
-			throw exception();
-		else
-			manifest.add( passenger.getReservationNumber(), passenger );
-	}
+	return ableToAdd;
 }  // end addPassenger
 
-void Flight::removePassenger(const Passenger& passenger)
+void Flight::removePassenger(const size_t& reservation)
 {
-	manifest.remove( passenger.getReservationNumber() );
+	manifest.erase(reservation);
 }  // end removePassenger
 
-Passenger Flight::findPassenger(const Passenger& passenger) const
+void Flight::findPassenger(const size_t& reservation) const
 {
-	Passenger foundPassenger;
-
 	try
 	{
-		foundPassenger = manifest.find( passenger.getReservationNumber() );
+		manifest.find(reservation);
 	}
 	catch (const NotFoundException&)
 	{
 		cout << "Unable to find passenger aboard flight " << flightNumber << endl;
 	}
-
-	return foundPassenger;
 }  // end findPassenger
 
-vector<Passenger> Flight::getManifest() const
+vector<size_t> Flight::getManifest() const
 {
-	return manifest.getAll();
+	vector<size_t> manifestToReturn;
+	for (auto const& iMap : manifest)
+		manifestToReturn.push_back(iMap.first);
+
+	return manifestToReturn;
 }  // end getManifest
 
 #endif
